@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Akshar Maza – Alphabet Fun</title>
+<style>
+:root{--ink:#23265a;--bg:#fff3d1;--sun:#ffc933;--coral:#ff6b6b;--mint:#3ddc97;--sky:#4cc9f0;--grape:#a66cff;--card:#fffdf6}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;min-height:100%}
+body{background:var(--bg);color:var(--ink);font-family:"Nirmala UI","Noto Sans Devanagari","Kohinoor Devanagari","Mangal","Comic Sans MS","Chalkboard SE",system-ui,sans-serif;font-weight:800;padding:12px 12px 40px;
+background-image:radial-gradient(#ffe39a 2px,transparent 2px);background-size:26px 26px}
+.wrap{max-width:900px;margin:0 auto}
+h1{margin:6px 0 12px;text-align:center;font-size:clamp(26px,6vw,40px)}
+h1 span{display:inline-block;animation:wob 2.4s ease-in-out infinite}
+h1 span:nth-child(2n){animation-delay:.3s}
+@keyframes wob{0%,100%{transform:rotate(-6deg)}50%{transform:rotate(6deg) translateY(-3px)}}
+.row{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-bottom:12px}
+button{font:inherit;color:var(--ink);cursor:pointer;border:4px solid var(--ink);border-radius:20px;background:#fff;box-shadow:0 5px 0 var(--ink);transition:transform .08s,box-shadow .08s}
+button:active{transform:translateY(5px);box-shadow:0 0 0 var(--ink)}
+button:focus-visible{outline:4px solid var(--grape);outline-offset:3px}
+.tab{padding:10px 20px;font-size:clamp(18px,4.5vw,24px)}
+.tab[aria-pressed=true]{background:var(--sun)}
+.mode{padding:8px 18px;font-size:18px;border-radius:999px}
+.mode[aria-pressed=true]{background:var(--mint)}
+h2{margin:18px 4px 8px;font-size:22px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:12px}
+.tile{aspect-ratio:1;font-size:clamp(34px,9vw,52px);display:flex;align-items:center;justify-content:center;padding:0;line-height:1}
+.tile:hover{transform:rotate(-4deg) scale(1.05)}
+.pop{animation:pop .4s}
+@keyframes pop{40%{transform:scale(1.25) rotate(6deg)}}
+/* big card */
+.ov{position:fixed;inset:0;background:rgba(35,38,90,.55);display:none;align-items:center;justify-content:center;padding:12px;z-index:5;overflow:auto}
+.ov.on{display:flex}
+.big{background:var(--card);border:5px solid var(--ink);border-radius:30px;box-shadow:0 8px 0 var(--ink);padding:16px;width:min(420px,100%);text-align:center}
+.big .L{font-size:clamp(90px,26vw,150px);line-height:1.1}
+.big .E{font-size:64px;line-height:1}
+.big .W{font-size:30px;margin:4px 0 10px}
+canvas{width:100%;max-width:340px;height:auto;touch-action:none;background:#fff;border:4px dashed var(--sky);border-radius:20px;display:block;margin:8px auto}
+.btns{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:8px}
+.btns button{padding:8px 14px;font-size:22px}
+/* quiz */
+.quiz{background:var(--card);border:5px solid var(--ink);border-radius:30px;box-shadow:0 8px 0 var(--ink);padding:18px;text-align:center}
+.quiz .E{font-size:clamp(80px,22vw,120px);line-height:1.1}
+.quiz .Q{font-size:22px;margin:4px 0 14px}
+.opts{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;max-width:420px;margin:0 auto}
+.opts button{font-size:clamp(40px,12vw,60px);padding:10px 0;line-height:1.2}
+.good{background:var(--mint)!important}.bad{background:var(--coral)!important;animation:shake .35s}
+@keyframes shake{25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+.stars{font-size:30px;margin-bottom:8px;min-height:40px}
+.hidden{display:none}
+@media(prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1 id="title" aria-label="Akshar Maza"></h1>
+  <div class="row" id="langs"></div>
+  <div class="row" id="modes"></div>
+  <div id="learn"></div>
+  <div id="play" class="hidden"></div>
+</div>
+
+<div class="ov" id="ov"><div class="big">
+  <div class="L" id="bL"></div><div class="E" id="bE"></div><div class="W" id="bW"></div>
+  <canvas id="cv" width="340" height="220"></canvas>
+  <div class="btns">
+    <button id="bPrev" aria-label="Previous">⬅️</button>
+    <button id="bHear" aria-label="Hear it">🔊</button>
+    <button id="bClear" aria-label="Clear drawing">🧽</button>
+    <button id="bNext" aria-label="Next">➡️</button>
+    <button id="bClose" aria-label="Close">❌</button>
+  </div>
+</div></div>
+
+<script>
+/* ---------- data: letter:word:emoji ---------- */
+const P=s=>s.split('|').map(x=>{const[a,b,c]=x.split(':');return{l:a,w:b,e:c}});
+const D={
+ mr:{name:'मराठी',tts:'mr-IN',alt:'hi-IN',q:'हे कोणत्या अक्षराने सुरू होते?',again:'पुन्हा खेळा',
+  groups:[['स्वर',P('अ:अननस:🍍|आ:आंबा:🥭|इ:इमारत:🏢|ई:ईश्वर:🙏|उ:उंट:🐪|ऊ:ऊस:🎋|ऋ:ऋषी:🧙|ए:एक:1️⃣|ऐ:ऐरण:🔨|ओ:ओठ:👄|औ:औषध:💊|अं:अंगठी:💍|अः:नमः:🙏')],
+  ['व्यंजन',P('क:कमळ:🪷|ख:खेकडा:🦀|ग:गाय:🐄|घ:घर:🏠|ङ:पतङ्ग:🪁|च:चमचा:🥄|छ:छत्री:☂️|ज:जहाज:🚢|झ:झाड:🌳|ञ:पञ्च:✋|ट:टरबूज:🍉|ठ:ठसा:🐾|ड:डबा:🥫|ढ:ढग:☁️|ण:बाण:🏹|त:तलवार:🗡️|थ:थवा:🐦|द:दगड:🪨|ध:धनुष्य:🏹|न:नळ:🚰|प:पतंग:🪁|फ:फळ:🍓|ब:बदक:🦆|भ:भोपळा:🎃|म:मासा:🐟|य:यज्ञ:🔥|र:रथ:🚗|ल:लाडू:🟠|व:वाघ:🐅|श:शंख:🐚|ष:षटकोन:⬡|स:सफरचंद:🍎|ह:हत्ती:🐘|ळ:बाळ:👶|क्ष:क्षेपणास्त्र:🚀|ज्ञ:ज्ञानी:📚')]]},
+ hi:{name:'हिन्दी',tts:'hi-IN',alt:'hi-IN',q:'यह किस अक्षर से शुरू होता है?',again:'फिर खेलें',
+  groups:[['स्वर',P('अ:अनार:🍎|आ:आम:🥭|इ:इमली:🫘|ई:ईख:🎋|उ:उल्लू:🦉|ऊ:ऊँट:🐪|ऋ:ऋषि:🧙|ए:एक:1️⃣|ऐ:ऐनक:👓|ओ:ओखली:🥣|औ:औरत:👩|अं:अंगूर:🍇|अः:दुःख:☹️')],
+  ['व्यंजन',P('क:कबूतर:🕊️|ख:खरगोश:🐰|ग:गमला:🪴|घ:घर:🏠|ङ:अङ्ग:🖐️|च:चम्मच:🥄|छ:छतरी:☂️|ज:जहाज:🚢|झ:झंडा:🚩|ञ:पञ्च:✋|ट:टमाटर:🍅|ठ:ठेला:🛒|ड:डमरू:🪘|ढ:ढक्कन:🫙|ण:बाण:🏹|त:तरबूज:🍉|थ:थैला:👜|द:दवात:🖋️|ध:धनुष:🏹|न:नल:🚰|प:पतंग:🪁|फ:फल:🍓|ब:बतख:🦆|भ:भालू:🐻|म:मछली:🐟|य:यज्ञ:🔥|र:रथ:🚗|ल:लड्डू:🟠|व:वकील:⚖️|श:शेर:🦁|ष:षट्कोण:⬡|स:सेब:🍎|ह:हाथी:🐘|क्ष:क्षत्रिय:🛡️|त्र:त्रिशूल:🔱|ज्ञ:ज्ञानी:📚')]]},
+ en:{name:'English',tts:'en-IN',alt:'en-US',q:'Which letter does this start with?',again:'Play again',
+  groups:[['ABC',P('A:Apple:🍎|B:Ball:⚽|C:Cat:🐱|D:Dog:🐶|E:Elephant:🐘|F:Fish:🐟|G:Grapes:🍇|H:Hat:🎩|I:Ice cream:🍦|J:Jar:🫙|K:Kite:🪁|L:Lion:🦁|M:Moon:🌙|N:Nest:🪺|O:Orange:🍊|P:Parrot:🦜|Q:Queen:👸|R:Rabbit:🐰|S:Sun:☀️|T:Tree:🌳|U:Umbrella:☂️|V:Van:🚐|W:Watch:⌚|X:X-ray:🩻|Y:Yo-yo:🪀|Z:Zebra:🦓')]]}
+};
+const COL=['#ffc933','#ff8f8f','#7be8b5','#7fdcf7','#c4a1ff','#ffb36b'];
+let lang='mr',mode='learn',cur=0,flat=[];
+const $=id=>document.getElementById(id);
+
+/* ---------- sound ---------- */
+function speak(t,L){
+  if(!('speechSynthesis' in window))return;
+  const s=speechSynthesis;s.cancel();
+  const u=new SpeechSynthesisUtterance(t);const v=s.getVoices();
+  const pick=p=>v.find(x=>x.lang.replace('_','-').toLowerCase().startsWith(p.toLowerCase()));
+  const vo=pick(D[L].tts)||pick(D[L].alt.slice(0,2));
+  if(vo){u.voice=vo;u.lang=vo.lang}else u.lang=D[L].alt;
+  u.rate=.8;u.pitch=1.2;s.speak(u);
+}
+let ac;
+function beep(ok){
+  try{ac=ac||new (window.AudioContext||window.webkitAudioContext)();
+  (ok?[523,659,784]:[220,170]).forEach((f,i)=>{const o=ac.createOscillator(),g=ac.createGain();
+   o.type='triangle';o.frequency.value=f;o.connect(g);g.connect(ac.destination);
+   const t=ac.currentTime+i*.12;g.gain.setValueAtTime(.2,t);g.gain.exponentialRampToValueAtTime(.001,t+.2);o.start(t);o.stop(t+.22)})}catch(e){}
+}
+
+/* ---------- header ---------- */
+$('title').innerHTML='अ आ A B क ख'.split(' ').map((c,i)=>`<span style="color:${['#ff6b6b','#23265a','#3b9ee0','#a66cff','#2fb67c','#e89a00'][i]}">${c}</span>`).join(' ');
+function head(){
+  $('langs').innerHTML='';
+  for(const k in D){const b=document.createElement('button');b.className='tab';b.textContent=D[k].name;
+   b.setAttribute('aria-pressed',k===lang);b.onclick=()=>{lang=k;head();draw()};$('langs').append(b)}
+  $('modes').innerHTML='';
+  [['learn','👆 Learn'],['play','🎮 Play']].forEach(([k,t])=>{const b=document.createElement('button');b.className='mode';b.textContent=t;
+   b.setAttribute('aria-pressed',k===mode);b.onclick=()=>{mode=k;head();draw()};$('modes').append(b)});
+}
+
+/* ---------- learn grid ---------- */
+function draw(){
+  flat=D[lang].groups.flatMap(g=>g[1]);
+  $('learn').classList.toggle('hidden',mode!=='learn');
+  $('play').classList.toggle('hidden',mode!=='play');
+  if(mode==='learn'){
+    const box=$('learn');box.innerHTML='';let n=0;
+    D[lang].groups.forEach(([title,list])=>{
+      if(D[lang].groups.length>1){const h=document.createElement('h2');h.textContent=title;box.append(h)}
+      const g=document.createElement('div');g.className='grid';
+      list.forEach(it=>{const i=n++;const b=document.createElement('button');b.className='tile';
+        b.style.background=COL[i%COL.length];b.textContent=it.l;b.setAttribute('aria-label',it.l+' '+it.w);
+        b.onclick=()=>{b.classList.remove('pop');void b.offsetWidth;b.classList.add('pop');openCard(i)};g.append(b)});
+      box.append(g)});
+  }else startQuiz();
+}
+
+/* ---------- big card + tracing ---------- */
+const cv=$('cv'),cx=cv.getContext('2d');let pen=0;
+function ghost(){
+  cx.clearRect(0,0,340,220);cx.fillStyle='#e3e6f5';cx.textAlign='center';cx.textBaseline='middle';
+  cx.font='800 170px "Nirmala UI","Noto Sans Devanagari",Mangal,"Comic Sans MS",sans-serif';cx.fillText(flat[cur].l,170,115);
+}
+function openCard(i){
+  cur=(i+flat.length)%flat.length;const it=flat[cur];
+  $('bL').textContent=it.l;$('bE').textContent=it.e;$('bW').textContent=it.w;
+  $('bL').style.color=['#ff6b6b','#3b9ee0','#2fb67c','#a66cff','#e89a00'][cur%5];
+  ghost();$('ov').classList.add('on');say();
+}
+function say(){const it=flat[cur];speak(lang==='en'?`${it.l}. ${it.l} for ${it.w}`:`${it.l}. ${it.w}`,lang)}
+$('bHear').onclick=say;$('bClear').onclick=ghost;
+$('bPrev').onclick=()=>openCard(cur-1);$('bNext').onclick=()=>openCard(cur+1);
+$('bClose').onclick=()=>{$('ov').classList.remove('on');speechSynthesis&&speechSynthesis.cancel()};
+$('ov').onclick=e=>{if(e.target===$('ov'))$('bClose').onclick()};
+document.addEventListener('keydown',e=>{if(!$('ov').classList.contains('on'))return;
+  if(e.key==='Escape')$('bClose').onclick();if(e.key==='ArrowRight')openCard(cur+1);if(e.key==='ArrowLeft')openCard(cur-1)});
+const pos=e=>{const r=cv.getBoundingClientRect();return[(e.clientX-r.left)*340/r.width,(e.clientY-r.top)*220/r.height]};
+cv.onpointerdown=e=>{cv.setPointerCapture(e.pointerId);pen=1;const[x,y]=pos(e);cx.beginPath();cx.moveTo(x,y);
+  cx.lineWidth=14;cx.lineCap=cx.lineJoin='round';cx.strokeStyle=['#ff6b6b','#3b9ee0','#2fb67c','#a66cff'][Math.floor(Math.random()*4)]};
+cv.onpointermove=e=>{if(!pen)return;const[x,y]=pos(e);cx.lineTo(x,y);cx.stroke()};
+cv.onpointerup=cv.onpointercancel=()=>pen=0;
+
+/* ---------- play: find the letter ---------- */
+let Q;
+function startQuiz(){Q={n:0,score:0,max:8,done:[]};nextQ()}
+function nextQ(){
+  const box=$('play');
+  if(Q.n>=Q.max){beep(true);
+    box.innerHTML=`<div class="quiz"><div class="stars">${'⭐'.repeat(Q.score)}</div><div class="E">${Q.score>=Q.max-1?'🏆':'🎉'}</div><div class="Q">${Q.score} / ${Q.max}</div><button class="mode" id="again" style="font-size:22px;padding:10px 24px">${D[lang].again}</button></div>`;
+    $('again').onclick=startQuiz;return}
+  let t;do{t=flat[Math.floor(Math.random()*flat.length)]}while(Q.done.includes(t));Q.done.push(t);
+  const opts=[t];while(opts.length<4){const o=flat[Math.floor(Math.random()*flat.length)];if(!opts.includes(o))opts.push(o)}
+  opts.sort(()=>Math.random()-.5);
+  box.innerHTML=`<div class="quiz"><div class="stars">${'⭐'.repeat(Q.score)}</div><div class="E">${t.e}</div><div class="Q">${D[lang].q}</div><div class="opts"></div><div class="btns"><button id="rep" aria-label="Hear again">🔊</button></div></div>`;
+  const o=box.querySelector('.opts');let locked=false;
+  opts.forEach(it=>{const b=document.createElement('button');b.textContent=it.l;
+    b.onclick=()=>{if(locked)return;
+      if(it===t){locked=true;b.classList.add('good');beep(true);Q.score++;speak(t.w,lang);setTimeout(()=>{Q.n++;nextQ()},1500)}
+      else{b.classList.add('bad');beep(false)}};o.append(b)});
+  $('rep').onclick=()=>speak(t.w,lang);
+  setTimeout(()=>speak(t.w,lang),300);
+}
+
+if('speechSynthesis' in window)speechSynthesis.onvoiceschanged=()=>{};
+head();draw();
+</script>
+</body>
+</html>
